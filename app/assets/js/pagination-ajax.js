@@ -1,8 +1,18 @@
-jQuery(document).ready(function ($) {
+jQuery(function ($) {
     $(document).on('click', '.pagination a', function (e) {
         e.preventDefault();
-        var page = $(this).data('page');
-        console.log(keenado_ajax);
+
+        const $link = $(this);
+        const page = $link.data('page');
+        const gridId = $link.data('grid-id');
+        const $grid = $(`[data-grid-id="${gridId}"]`);
+
+        if (!$grid.length || !page || !gridId) {
+            console.error('Pagination error: Missing gridId or page.');
+            return;
+        }
+
+        const layout = $grid.data('layout') || 'vertical'; // Read from data-layout attribute
 
         $.ajax({
             url: keenado_ajax.ajax_url,
@@ -10,19 +20,22 @@ jQuery(document).ready(function ($) {
             data: {
                 action: 'keenado_pagination',
                 page: page,
+                grid_id: gridId,
+                layout: layout,
             },
-            beforeSend: function () {
-                $('.post-grid').addClass('loading'); // Optional: Add a loading indicator
+            beforeSend: () => {
+                $grid.addClass('loading');
             },
-            success: function (response) {
+            success: (response) => {
                 if (response.success) {
-                    $('.post-grid').html(response.data); // Replace grid content
+                    $grid.replaceWith(response.data);
                 } else {
-                    alert(response.data); // Display error
+                    console.warn('Pagination response error:', response.data);
+                    alert(response.data || 'An error occurred while loading posts.');
                 }
             },
-            complete: function () {
-                $('.post-grid').removeClass('loading'); // Remove loading indicator
+            complete: () => {
+                $grid.removeClass('loading');
             },
         });
     });

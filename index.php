@@ -98,46 +98,48 @@ function keenado_posts_plugin_enqueue_admin_scripts() {
 }
 
 function keenado_handle_pagination() {
-    // Verify the request
-    if (!isset($_POST['page'])) {
-        wp_send_json_error('No page number provided.');
+    if (
+        !isset($_POST['page']) ||
+        !isset($_POST['grid_id']) ||
+        !isset($_POST['layout'])
+    ) {
+        wp_send_json_error('Missing required pagination parameters.');
         wp_die();
     }
 
-    $page = intval($_POST['page']);
-    $posts_per_page = 3; // Change as needed
+    $page    = intval($_POST['page']);
+    $grid_id = sanitize_text_field($_POST['grid_id']);
+    $layout  = sanitize_text_field($_POST['layout']);
 
-    // Include your rendering class if not already included
-    if (!class_exists('KeenadoPostGrid')) {
-        require_once KEENADO_POST_PALOOZA_PLUGIN_DIR . 'app/models/KeenadoPostGrid.php'; // Adjust the path
-    }
-
-    // Instantiate the class
-    $renderer = new KeenadoPostGrid([
-        'posts_per_page' => $posts_per_page,
-        'paged' => $page,
-        'title_font_color' => '#333333', // Example, use actual values as needed
-        'bg_color' => '#ffffff',
-        'title_font_family' => 'font-sans',
-        'description_font_color' => '#666666',
+    $atts = [
+        'posts_per_page'          => 3,
+        'paged'                   => $page,
+        'grid_id'                 => $grid_id,
+        'title_font_color'        => '#333333',
+        'bg_color'                => '#ffffff',
+        'title_font_family'       => 'font-sans',
+        'description_font_color'  => '#666666',
         'description_font_family' => 'font-serif',
-    ]);
+    ];
 
-    // Use the render method
     try {
-        $content = $renderer->render();
-
-        if ($content) {
-            return $content;
+        if ($layout === 'horizontal') {
+            require_once KEENADO_POST_PALOOZA_PLUGIN_DIR . 'app/models/KeenadoHorizontalPostGrid.php';
+            $renderer = new \app\models\KeenadoHorizontalPostGrid($atts);
+        } elseif ($layout === 'vertical') {
+            require_once KEENADO_POST_PALOOZA_PLUGIN_DIR . 'app/models/KeenadoPostGrid.php';
+            $renderer = new \app\models\KeenadoPostGrid($atts);
         } else {
-            wp_send_json_error('No posts found.');
+            wp_send_json_error('Invalid layout type.');
+            wp_die();
         }
-        
-        
 
+        $content = $renderer->render();
+        wp_send_json_success($content);
     } catch (Exception $e) {
         wp_send_json_error('Error rendering posts: ' . $e->getMessage());
     }
 
-    wp_die(); // Always end with wp_die for AJAX requests
+    wp_die();
 }
+
