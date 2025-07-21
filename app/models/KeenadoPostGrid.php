@@ -125,18 +125,30 @@ class KeenadoPostGrid {
                 if ($pagination) {
                     $output .= '<div class="pagination mt-8 text-center">
                                 <ul class="flex justify-center space-x-4 text-sm">';
-        
+
                     foreach ($pagination as $page_link) {
+                        // Extract the page number from the link or default to 1
+                        preg_match('/page\/(\d+)/', $page_link, $matches); // Adjusted for common permalink structure
+                        $page_number = isset($matches[1]) ? $matches[1] : 1;
+                
                         // Check if the link is the current page (non-clickable)
                         if (strpos($page_link, 'current') !== false) {
                             // Apply styling to the current page (non-clickable, centered, outlined)
                             $output .= '<li>'
-                                            . str_replace('<span', '<span class="block px-3 py-2 border border-gray text-black rounded"', $page_link)
+                                        . str_replace(
+                                            '<span', 
+                                            '<span class="block px-3 py-2 border border-gray text-black rounded"', 
+                                            $page_link
+                                        )
                                     . '</li>';
                         } else {
                             // Append TailwindCSS classes to the clickable links
                             $output .= '<li>'
-                                            . str_replace('<a', '<a class="block px-3 py-2 bg-gray-200 rounded hover:bg-blue-500 hover:text-white"', $page_link)
+                                        . str_replace(
+                                            '<a',
+                                            '<a class="block px-3 py-2 bg-gray-200 rounded hover:bg-blue-500 hover:text-white" data-page="' . esc_attr($page_number) . '"',
+                                            $page_link
+                                        )
                                     . '</li>';
                         }
                     }

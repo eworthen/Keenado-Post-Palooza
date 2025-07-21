@@ -6,6 +6,8 @@ Version: 1.0
 Author: eworthen
 */
 
+use app\models\KeenadoPostGrid;
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly
 }
@@ -24,6 +26,8 @@ add_action( 'init', 'keenado_post_palooza_plugin_init' ); // initialize plugin
 add_action( 'admin_menu', 'keenado_post_palooza_plugin_menu' ); // admin dashboard menu
 add_action( 'wp_enqueue_scripts', 'keenado_posts_plugin_enqueue_frontend_scripts' ); // front end css
 add_action( 'admin_enqueue_scripts', 'keenado_posts_plugin_enqueue_admin_scripts' ); // admin dashboard css
+add_action( 'wp_ajax_keenado_pagination', 'keenado_handle_pagination' ); // admin pagination
+add_action( 'wp_ajax_nopriv_keenado_pagination', 'keenado_handle_pagination' ); // user pagination
 
 // Include the main plugin file
 require_once KEENADO_POST_PALOOZA_PLUGIN_DIR . 'app/keenado-post-palooza-plugin.php';
@@ -55,11 +59,85 @@ function keenado_post_palooza_plugin_menu() {
 // Enqueue TailwindCSS for the front end
 function keenado_posts_plugin_enqueue_frontend_scripts() {
     // Enqueue the TailwindCSS output file for front-end
-    wp_enqueue_style( 'keenado-post-palooza-styles', KEENADO_POST_PALOOZA_URL_DIR. 'app/assets/css/output.css', array(), '1.0.0', 'all' );
+    wp_enqueue_style( 
+        'keenado-post-palooza-styles', 
+        KEENADO_POST_PALOOZA_URL_DIR. 'app/assets/css/output.css', 
+        array(), 
+        '1.0.0', 
+        'all' 
+    );
+
+    // Enqueue AJAX for post pagination
+    wp_enqueue_script( 
+        'keenado-post-palooza-ajax', 
+        KEENADO_POST_PALOOZA_URL_DIR. 'app/assets/js/pagination-ajax.js', 
+        ['jquery'], 
+        '1.0.0', 
+        true 
+    );
+
+    // Pass AJAX URL to the script
+    wp_localize_script(
+        'keenado-post-palooza-ajax',
+        'keenado_ajax',
+        array('ajax_url' => admin_url('admin-ajax.php'))
+    );
+
 }
 
 // Enqueue TailwindCSS for the admin dashboard
 function keenado_posts_plugin_enqueue_admin_scripts() {
     // Enqueue the TailwindCSS output file for admin pages
-    wp_enqueue_style( 'keenado-post-palooza-admin-styles', KEENADO_POST_PALOOZA_URL_DIR . 'app/assets/css/output.css', array(), '1.0.0', 'all' );
+    wp_enqueue_style( 
+        'keenado-post-palooza-admin-styles', 
+        KEENADO_POST_PALOOZA_URL_DIR . 'app/assets/css/output.css', 
+        array(), 
+        '1.0.0', 
+        'all' 
+    );
+}
+
+function keenado_handle_pagination() {
+    // Verify the request
+    if (!isset($_POST['page'])) {
+        wp_send_json_error('No page number provided.');
+        wp_die();
+    }
+
+    $page = intval($_POST['page']);
+    $posts_per_page = 3; // Change as needed
+
+    // Include your rendering class if not already included
+    if (!class_exists('KeenadoPostGrid')) {
+        require_once KEENADO_POST_PALOOZA_PLUGIN_DIR . 'app/models/KeenadoPostGrid.php'; // Adjust the path
+    }
+
+    // Instantiate the class
+    $renderer = new KeenadoPostGrid([
+        'posts_per_page' => $posts_per_page,
+        'paged' => $page,
+        'title_font_color' => '#333333', // Example, use actual values as needed
+        'bg_color' => '#ffffff',
+        'title_font_family' => 'font-sans',
+        'description_font_color' => '#666666',
+        'description_font_family' => 'font-serif',
+    ]);
+
+    // Use the render method
+    try {
+        $content = $renderer->render();
+
+        if ($content) {
+            return $content;
+        } else {
+            wp_send_json_error('No posts found.');
+        }
+        
+        
+
+    } catch (Exception $e) {
+        wp_send_json_error('Error rendering posts: ' . $e->getMessage());
+    }
+
+    wp_die(); // Always end with wp_die for AJAX requests
 }
